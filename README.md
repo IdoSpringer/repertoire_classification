@@ -1,4 +1,4 @@
-# Repertoire Analysis and classification
+# Repertoire Analysis and Classification
 We have developed the ERGO models in order to detect binding of specific TCRs and peptides.
 The next level will be applying those methods in order to classify a full TCR repertoire.
 
