@@ -101,8 +101,9 @@ if __name__ == '__main__':
     labels = []
     for subdir, dirs, files in os.walk('data'):
         for file in files:
-            # print(os.path.join(subdir, file))
             filepath = subdir + os.sep + file
+            #if filepath.endswith("169.tsv") or filepath.endswith("602.tsv") or\
+            #    filepath.endswith("594.tsv") or filepath.endswith("707.tsv"):
             if filepath.endswith(".tsv"):
                 print(filepath)
                 label = filepath.split(os.sep)[-2]
@@ -110,12 +111,30 @@ if __name__ == '__main__':
                 p = main(args, filepath)
                 p_tcrs.append(p)
     # plt.show()
-    neg_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV+']
-    pos_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV-']
-    for all_probs in pos_p:
-        plt.hist(all_probs, alpha=0.5, bins=50, label='CMV+')
-    for all_probs in neg_p:
-        plt.hist(all_probs, alpha=0.5, bins=50, label='CMV-')
-    plt.legend()
+    neg_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV-']
+    neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+    pos_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV+']
+    pos_logs = [-np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+    for i in range(len(neg_p)):
+        plt.hist(neg_logs, label='CMV-', alpha=0.5, density=True, bins=10, histtype='step')
+        plt.hist(pos_logs, label='CMV+', alpha=0.5, density=True, bins=10, histtype='step')
+        pass
+    # plt.hist(neg_logs, label='CMV-', alpha=0.5, stacked=True, density=True, bins=20)
+    # plt.hist(pos_logs, label='CMV+', alpha=0.5, stacked=True, density=True, bins=20)
+    '''
+    for i, (neg_bin, pos_bin), in enumerate(zip(neg_p, pos_p)):
+        #print(i, neg_logs[i], pos_logs[i])
+        #plt.bar(0, neg_logs[i], bottom=neg_logs[i-1] if i > 0 else 0, width=0.35)
+        #plt.bar(1, pos_logs[i], bottom=pos_logs[i-1] if i > 0 else 0, width=0.35)
+        weights = np.ones_like(neg_logs[i]) / float(len(neg_logs[i]))
+        plt.hist(neg_logs[i], label='CMV-', alpha=0.5, weights=weights, bins=20)
+        weights = np.ones_like(pos_logs[i]) / float(len(pos_logs[i]))
+        plt.hist(pos_logs[i], label='CMV+', alpha=0.5, weights=weights, bins=20)
+    '''
+    # plt.xticks(ticks=[0, 1], labels=['CMV-', 'CMV+'])
+    # plt.ylabel('Log number of TCRs in repertoire with score > 0.98')
+    plt.xlabel('CMV- (left) and CMV+ (right) highest score bin Histograms')
+    plt.ylabel('+- log(1 - x) normalized histograms for x > 0.98 scores')
+    #plt.legend()
     plt.show()
     # plt.savefig('cmv_active_tcrs.png')

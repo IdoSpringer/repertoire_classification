@@ -38,3 +38,12 @@ We are interested in the highest bin of the histogram. We expect that CMV+ reper
 closer to the '1' edge.
 
 (The histograms above are not normalized and are affected by the repertoire size)
+
+Since only the last bin is important, we looked for a way to examine it.
+We took +-log(1-bin) histograms for the highest bin (score > 0.98) in every repertoire
+(because it should be close to 1).
+![](https://github.com/IdoSpringer/repertoire_classification/blob/master/plots/highest_bin_norm_hists.png)
+
+Now the histograms are normalized.
+The left side is CMV- repertoires, and the right side is CMV+.
+Again, currently we do not see major differences.
