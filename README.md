@@ -36,3 +36,5 @@ We looked over the whole histograms:
 The model learns to dump the scores to the edges (thanks to cross-entropy loss).
 We are interested in the highest bin of the histogram. We expect that CMV+ repertoires will be
 closer to the '1' edge.
+
+(The histograms above are not normalized and are affected by the repertoire size)
