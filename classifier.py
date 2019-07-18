@@ -1,14 +1,18 @@
 import argparse
 from data_loader import *
-from ERGO_models import DoubleLSTMClassifier, PaddingAutoencoder, AutoencoderLSTMClassifier
+from ERGO_models import DoubleLSTMClassifier, AutoencoderLSTMClassifier
 import os
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from matplotlib.lines import Line2D
 import numpy as np
+import pickle
 
 
 def predict(key, model, loader, device):
     model.eval()
     # For all samples
+    tcrs = []
     reacting_tcrs = []
     all_probs = []
     for batch in loader:
@@ -21,11 +25,74 @@ def predict(key, model, loader, device):
             probs = model(batch.tcr_tensor,
                           batch.padded_peps, batch.peps_lengths)
         all_probs.extend(probs.view(1, -1).tolist()[0])
+        tcrs.extend(batch.tcrs)
+        '''
         for i in range(len(batch.tcrs)):
             if probs[i].item() > 0.98:
                 # print(batch.tcrs[i])
                 reacting_tcrs.append(batch.tcrs[i])
-    return np.array(all_probs)
+        '''
+    return tcrs, np.array(all_probs)
+
+
+def save_predictions_to_file(repertoire_filename, peptide):
+    # all repertoire, some CMV peptides
+    params = {}
+    params['lr'] = 1e-3
+    params['wd'] = 1e-5
+    params['epochs'] = 200
+    params['batch_size'] = 50
+    params['lstm_dim'] = 30
+    params['emb_dim'] = 10
+    params['dropout'] = 0.1
+    params['option'] = 0
+    params['enc_dim'] = 30
+    params['train_ae'] = False
+    if args.model_type == 'ae':
+        checkpoint = torch.load(args.ae_file)
+        params['max_len'] = checkpoint['max_len']
+        max_len = checkpoint['max_len']
+        params['batch_size'] = checkpoint['batch_size']
+        batch_size = 50
+    else:
+        max_len = None
+        batch_size = 1000
+    # Load data
+    dataset = PeptideRepertoire(repertoire_filename, peptide=peptide)
+    collate_wrapper = lambda x: wrapper(x, args.model_type, max_len=max_len, batch_size=params['batch_size'])
+    loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_wrapper,
+        num_workers=20, pin_memory=True, sampler=None)
+    # Load model
+    checkpoint = torch.load(args.model_file)
+    if args.model_type == 'ae':
+        model = AutoencoderLSTMClassifier(params['emb_dim'], args.device, params['max_len'], 21, params['enc_dim'],
+                                          params['batch_size'], args.ae_file, params['train_ae'])
+    elif args.model_type == 'lstm':
+        model = DoubleLSTMClassifier(params['emb_dim'], params['lstm_dim'], params['dropout'], args.device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
+    model.to(args.device)
+    tcrs, all_probs = predict(args.model_type, model, loader, args.device)
+    assert len(tcrs) == len(all_probs)
+    pathology = repertoire_filename.split("/")[-2]
+    rep_id = repertoire_filename.split("/")[-1]
+    assert rep_id.endswith('.tsv')
+    rep_id = rep_id[:-4]
+    with open('/'.join(['ergo_predictions', args.model_type.upper(),
+                        pathology, rep_id + '_' + peptide]) + '.pickle', 'wb') as handle:
+            pickle.dump(zip(tcrs, all_probs), handle)
+    # save predictions as (tcr, score) long list
+    # file name is model_type / pathology / repertoire_name + peptide
+    # todo problem with AE last batch...
+    pass
+
+
+def read_predictions_from_file(filepath):
+    with open(filepath, 'rb') as handle:
+        z = pickle.load(handle)
+        tcrs, scores = zip(*z)
+    return tcrs, scores
 
 
 def main(args, data):
@@ -72,13 +139,24 @@ def main(args, data):
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     model.to(args.device)
-    all_probs = predict(args.model_type, model, loader, args.device)
+    all_probs = predict(args.model_type, model, loader, args.device)[1]
     high_bin = [p for p in all_probs if p > 0.98]
     return high_bin
     # plt.hist(all_probs, bins=100)
     # plt.show()
     # print(p, len(dataset), p * 100 / len(dataset))
     # return p * 100 / len(dataset)
+
+
+def save_predictions():
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    for subdir, dirs, files in os.walk('data'):
+        for file in files:
+            filepath = subdir + os.sep + file
+            if filepath.endswith(".tsv"):
+                print(filepath)
+                for pep in cmv_peps:
+                    save_predictions_to_file(filepath, pep)
 
 
 if __name__ == '__main__':
@@ -97,44 +175,54 @@ if __name__ == '__main__':
     # parser.add_argument("--roc_file")
     # parser.add_argument("--test_data_file")
     args = parser.parse_args()
+
+    # read_predictions_from_file('ergo_predictions/LSTM/CMV+/HIP00594_NLVPMVATV.pickle')
+    # exit()
+    # save_predictions()
+
+    # plot histograms
     p_tcrs = []
     labels = []
-    for subdir, dirs, files in os.walk('data'):
+    neg_p = []
+    pos_p = []
+    for subdir, dirs, files in os.walk('ergo_predictions'):
         for file in files:
             filepath = subdir + os.sep + file
-            #if filepath.endswith("169.tsv") or filepath.endswith("602.tsv") or\
-            #    filepath.endswith("594.tsv") or filepath.endswith("707.tsv"):
-            if filepath.endswith(".tsv"):
+            if filepath.endswith("NLVPMVATV.pickle"):
                 print(filepath)
                 label = filepath.split(os.sep)[-2]
                 labels.append(label)
-                p = main(args, filepath)
-                p_tcrs.append(p)
-    # plt.show()
-    neg_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV-']
+                tcrs, preds = read_predictions_from_file(filepath)
+                if label == 'CMV-':
+                    neg_p.append([pred for pred in preds if pred > 0.98])
+                elif label == 'CMV+':
+                    pos_p.append([pred for pred in preds if pred > 0.98])
+                # p_tcrs.append(preds)
+    # neg_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV-']
     neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
-    pos_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV+']
-    pos_logs = [-np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
-    for i in range(len(neg_p)):
-        plt.hist(neg_logs, label='CMV-', alpha=0.5, density=True, bins=10, histtype='step')
-        plt.hist(pos_logs, label='CMV+', alpha=0.5, density=True, bins=10, histtype='step')
-        pass
-    # plt.hist(neg_logs, label='CMV-', alpha=0.5, stacked=True, density=True, bins=20)
-    # plt.hist(pos_logs, label='CMV+', alpha=0.5, stacked=True, density=True, bins=20)
-    '''
-    for i, (neg_bin, pos_bin), in enumerate(zip(neg_p, pos_p)):
-        #print(i, neg_logs[i], pos_logs[i])
-        #plt.bar(0, neg_logs[i], bottom=neg_logs[i-1] if i > 0 else 0, width=0.35)
-        #plt.bar(1, pos_logs[i], bottom=pos_logs[i-1] if i > 0 else 0, width=0.35)
-        weights = np.ones_like(neg_logs[i]) / float(len(neg_logs[i]))
-        plt.hist(neg_logs[i], label='CMV-', alpha=0.5, weights=weights, bins=20)
-        weights = np.ones_like(pos_logs[i]) / float(len(pos_logs[i]))
-        plt.hist(pos_logs[i], label='CMV+', alpha=0.5, weights=weights, bins=20)
-    '''
-    # plt.xticks(ticks=[0, 1], labels=['CMV-', 'CMV+'])
-    # plt.ylabel('Log number of TCRs in repertoire with score > 0.98')
-    plt.xlabel('CMV- (left) and CMV+ (right) highest score bin Histograms')
-    plt.ylabel('+- log(1 - x) normalized histograms for x > 0.98 scores')
-    #plt.legend()
+    print(len(neg_logs[0]), len(neg_logs[1]))
+    # pos_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV+']
+    pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+    bins = np.histogram(neg_logs[0], density=True, bins='auto')[1]
+    print(bins)
+    neg_hists = [np.histogram(k, density=True, bins=bins)[0] for k in neg_logs]
+    pos_hists = [np.histogram(k, density=True, bins=bins)[0] for k in pos_logs]
+    # plt.hist(neg_hists, histtype='step', stacked=True, color=colors)
+    # plt.(pos_hists, histtype='step', stacked=True, color=colors)
+    neg_colors = cm.Reds(np.linspace(0.5, 1, 10))
+    pos_colors = cm.Blues(np.linspace(0.5, 1, 10))
+
+
+    cmap = cmap = plt.cm.coolwarm
+    custom_lines = [Line2D([0], [0], color=cmap(0.), lw=4),
+                    Line2D([0], [0], color=cmap(1.), lw=4)]
+    fig, ax = plt.subplots()
+    for neg_hist, nc, pos_hist, pc in zip(neg_hists, neg_colors, pos_hists, pos_colors):
+        ax.plot(range(len(neg_hists[0])), neg_hist, color=nc)
+        ax.plot(range(len(pos_hists[0])), pos_hist, color=pc)
+    ax.legend(custom_lines, ['CMV+', 'CMV-'])
+    plt.xticks([k for k in range(len(pos_hists[0])) if k%5 == 0], [int(b) for i, b in enumerate(bins[:-1]) if i%5 == 0])
+    plt.xlabel('log(1 - x) normalized histograms for x > 0.98 scores')
+    plt.title("Highest bin plotted histograms based on ERGO CMV peptide scores")
+    # plt.ylabel('+- log(1 - x) normalized histograms for x > 0.98 scores')
     plt.show()
-    # plt.savefig('cmv_active_tcrs.png')

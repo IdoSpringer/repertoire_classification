@@ -27,11 +27,11 @@ Currently it is hard to see any difference between repertoires.
 
 ## Report 16.7.19 :bar_chart:
 One repertoire might not be enough, so we took 10 CMV+ and 10 CMV- repertoires.
-![10 repertoires scores > 0.999](https://github.com/IdoSpringer/repertoire_classification/blob/master/plots/high_scores_10_repertoires.png)
+![10 repertoires scores > 0.999](plots/high_scores_10_repertoires.png)
 
 The CMV+ and CMV- distributions still look very similar.
 We looked over the whole histograms:
-![](https://github.com/IdoSpringer/repertoire_classification/blob/master/plots/hists_high_scores_cmv.png)
+![](plots/hists_high_scores_cmv.png)
 
 The model learns to dump the scores to the edges (thanks to cross-entropy loss).
 We are interested in the highest bin of the histogram. We expect that CMV+ repertoires will be
@@ -42,8 +42,24 @@ closer to the '1' edge.
 Since only the last bin is important, we looked for a way to examine it.
 We took +-log(1-bin) histograms for the highest bin (score > 0.98) in every repertoire
 (because it should be close to 1).
-![](https://github.com/IdoSpringer/repertoire_classification/blob/master/plots/highest_bin_norm_hists.png)
+![](plots/highest_bin_norm_hists.png)
 
 Now the histograms are normalized.
 The left side is CMV- repertoires, and the right side is CMV+.
 Again, currently we do not see major differences.
+
+## Report 18.7.19 :scroll:
+
+### Saving ERGO predictions
+We saved ERGO model predictions for the current repertoires (10 CMV+ and 10 CMV-),
+paired with several CMV peptides.
+Next week we will try to extract the predictions for all repertoires in Emerson et al. data, and for other
+pathology-associated databases.
+
+### Plotted histograms
+We would like to compare between the CMV+ and CMV- histograms showed earlier.
+Given the log(1-x) of the highest bin histograms, 
+the histograms were normalized to a density function for each repertoire (forgetting the repertoire size),
+and then were plotted together, distinguishing CMV+ and CMV- repertoires.
+![](plots/plot_hist_high_bin.png)
+ 
