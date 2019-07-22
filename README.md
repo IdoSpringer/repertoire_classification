@@ -49,7 +49,6 @@ The left side is CMV- repertoires, and the right side is CMV+.
 Again, currently we do not see major differences.
 
 ## Report 18.7.19 :scroll:
-
 ### Saving ERGO predictions
 We saved ERGO model predictions for the current repertoires (10 CMV+ and 10 CMV-),
 paired with several CMV peptides.
@@ -63,3 +62,10 @@ the histograms were normalized to a density function for each repertoire (forget
 and then were plotted together, distinguishing CMV+ and CMV- repertoires.
 ![](plots/plot_hist_high_bin.png)
  
+## Report 18.7.19 :pushpin:
+### More CMV peptides
+Continuing the histograms from the last week, we checked the scores for other frequent peptides associated with CMV.
+This time we tried both ERGO models (AE and LSTM).
+![](plots/plot_hists_3peps_ae.png)
+![](plots/plot_hists_3peps_lstm.png)
+

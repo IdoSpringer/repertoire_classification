@@ -16,6 +16,8 @@ def predict(key, model, loader, device):
     reacting_tcrs = []
     all_probs = []
     for batch in loader:
+        if key == 'ae' and batch.tcr_tensor is None:
+            continue
         batch.to_device(device)
         # Forward pass
         if key == 'lstm':
@@ -102,7 +104,7 @@ def main(args, data):
     # get test data batches (repertoire TCR and CMV peptide)        V
     # predict data                                                  V
     # take 1-5% of the TCRs with the highest score from ERGO        V
-    # look on the distribution                                      -
+    # look on the distribution                                      V
     # try to classify repertoire based on distribution (how?)       -
 
     params = {}
@@ -159,27 +161,57 @@ def save_predictions():
                     save_predictions_to_file(filepath, pep)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("model_type")
-    # parser.add_argument("dataset")
-    # parser.add_argument("sampling")
-    parser.add_argument("device")
-    # parser.add_argument("--protein", action="store_true")
-    # parser.add_argument("--hla", action="store_true")
-    parser.add_argument("--ae_file", nargs='?', const='pad_full_data_autoencoder_model1.pt',
-                        default='pad_full_data_autoencoder_model1.pt')
-    # parser.add_argument("--train_auc_file")
-    # parser.add_argument("--test_auc_file")
-    parser.add_argument("--model_file")
-    # parser.add_argument("--roc_file")
-    # parser.add_argument("--test_data_file")
-    args = parser.parse_args()
+def reg_score_hist():
+    p_tcrs = []
+    labels = []
+    neg_p = []
+    pos_p = []
+    for subdir, dirs, files in os.walk('ergo_predictions'):
+        for file in files:
+            filepath = subdir + os.sep + file
+            if filepath.endswith("NLVPMVATV.pickle") and args.model_type in filepath.lower():
+                print(filepath)
+                label = filepath.split(os.sep)[-2]
+                labels.append(label)
+                tcrs, preds = read_predictions_from_file(filepath)
+                if label == 'CMV-':
+                    neg_p.append(preds)
+                elif label == 'CMV+':
+                    pos_p.append(preds)
+                # p_tcrs.append(preds)
+    # neg_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV-']
+    # neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+    # print(len(neg_logs[0]), len(neg_logs[1]))
+    # pos_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV+']
+    # pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+    # bins = np.histogram(neg_p[0], density=True, bins='auto')[1]
+    # print(bins)
+    # neg_hists = [np.histogram(k, density=True, bins=bins)[0] for k in neg_p]
+    # pos_hists = [np.histogram(k, density=True, bins=bins)[0] for k in pos_p]
+    neg_colors = cm.Reds(np.linspace(0.5, 1, 10))
+    pos_colors = cm.Blues(np.linspace(0.5, 1, 10))
+    plt.hist(neg_p, stacked=False, color=neg_colors)
+    plt.hist(pos_p, stacked=False, color=pos_colors)
+    '''
+    cmap = cmap = plt.cm.coolwarm
+    custom_lines = [Line2D([0], [0], color=cmap(0.), lw=4),
+                    Line2D([0], [0], color=cmap(1.), lw=4)]
+    fig, ax = plt.subplots()
+    for neg_hist, nc, pos_hist, pc in zip(neg_hists, neg_colors, pos_hists, pos_colors):
+        ax.plot(range(len(neg_hists[0])), neg_hist, color=nc)
+        ax.plot(range(len(pos_hists[0])), pos_hist, color=pc)
+    ax.legend(custom_lines, ['CMV+', 'CMV-'])
+    plt.xticks([k for k in range(len(pos_hists[0])) if k % 5 == 0],
+               [int(b) for i, b in enumerate(bins[:-1]) if i % 5 == 0])
+    plt.xlabel('log(1 - x) normalized histograms for x > 0.98 scores')
+    plt.title("Highest bin plotted histograms based on ERGO CMV peptide scores")
+    # plt.ylabel('+- log(1 - x) normalized histograms for x > 0.98 scores')
+    '''
+    plt.show()
+    pass
 
-    # read_predictions_from_file('ergo_predictions/LSTM/CMV+/HIP00594_NLVPMVATV.pickle')
-    # exit()
-    # save_predictions()
 
+def plot_score_histograms():
     # plot histograms
     p_tcrs = []
     labels = []
@@ -212,7 +244,6 @@ if __name__ == '__main__':
     neg_colors = cm.Reds(np.linspace(0.5, 1, 10))
     pos_colors = cm.Blues(np.linspace(0.5, 1, 10))
 
-
     cmap = cmap = plt.cm.coolwarm
     custom_lines = [Line2D([0], [0], color=cmap(0.), lw=4),
                     Line2D([0], [0], color=cmap(1.), lw=4)]
@@ -226,3 +257,87 @@ if __name__ == '__main__':
     plt.title("Highest bin plotted histograms based on ERGO CMV peptide scores")
     # plt.ylabel('+- log(1 - x) normalized histograms for x > 0.98 scores')
     plt.show()
+
+
+def plot_multiple_peps_hists():
+    # plot histograms
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    for i, pep in enumerate(cmv_peps):
+        p_tcrs = []
+        labels = []
+        neg_p = []
+        pos_p = []
+        for subdir, dirs, files in os.walk('ergo_predictions'):
+            for file in files:
+                filepath = subdir + os.sep + file
+                if filepath.endswith(pep + ".pickle") and args.model_type in filepath.lower():
+                    print(filepath)
+                    label = filepath.split(os.sep)[-2]
+                    labels.append(label)
+                    tcrs, preds = read_predictions_from_file(filepath)
+                    if label == 'CMV-':
+                        neg_p.append([pred for pred in preds if pred > 0.98])
+                    elif label == 'CMV+':
+                        pos_p.append([pred for pred in preds if pred > 0.98])
+                    # p_tcrs.append(preds)
+        # neg_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV-']
+        neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+        print(len(neg_logs[0]), len(neg_logs[1]))
+        # pos_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV+']
+        pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+        bins = np.histogram(neg_logs[0], density=True, bins='auto', range=(-14.0, -4.0))[1]
+        print(bins)
+        neg_hists = [np.histogram(k, density=True, bins=bins)[0] for k in neg_logs]
+        pos_hists = [np.histogram(k, density=True, bins=bins)[0] for k in pos_logs]
+        # plt.hist(neg_hists, histtype='step', stacked=True, color=colors)
+        # plt.(pos_hists, histtype='step', stacked=True, color=colors)
+        ax = plt.subplot(1, 3, i+1)
+
+        neg_colors = cm.Reds(np.linspace(0.5, 1, 10))
+        pos_colors = cm.Blues(np.linspace(0.5, 1, 10))
+        cmap = plt.cm.coolwarm
+        custom_lines = [Line2D([0], [0], color=cmap(0.), lw=4),
+                        Line2D([0], [0], color=cmap(1.), lw=4)]
+        # fig, ax = plt.subplots()
+        for neg_hist, nc, pos_hist, pc in zip(neg_hists, neg_colors, pos_hists, pos_colors):
+            ax.plot(range(len(neg_hists[0])), neg_hist, color=nc)
+            ax.plot(range(len(pos_hists[0])), pos_hist, color=pc)
+        ax.legend(custom_lines, ['CMV+, ' + pep, 'CMV-, ' + pep])
+        ax.set_xticks([k for k in range(len(pos_hists[0])) if k % 5 == 0])
+        ax.set_xticklabels([int(b) for i, b in enumerate(bins[:-1]) if i % 5 == 0])
+        if i == 1:
+            plt.xlabel('log(1 - x) normalized histograms for x > 0.98 scores')
+            plt.title("Highest bin plotted histograms based on ERGO-" +args.model_type.upper() + " CMV peptide scores")
+    plt.show()
+    pass
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("model_type")
+    # parser.add_argument("dataset")
+    # parser.add_argument("sampling")
+    parser.add_argument("device")
+    # parser.add_argument("--protein", action="store_true")
+    # parser.add_argument("--hla", action="store_true")
+    parser.add_argument("--ae_file", nargs='?', const='pad_full_data_autoencoder_model1.pt',
+                        default='pad_full_data_autoencoder_model1.pt')
+    # parser.add_argument("--train_auc_file")
+    # parser.add_argument("--test_auc_file")
+    parser.add_argument("--model_file")
+    # parser.add_argument("--roc_file")
+    # parser.add_argument("--test_data_file")
+    args = parser.parse_args()
+
+    # read_predictions_from_file('ergo_predictions/LSTM/CMV+/HIP00594_NLVPMVATV.pickle')
+    # exit()
+    # save_predictions()
+    # plot_score_histograms()
+    # save_predictions_to_file('data/CMV+/HIP00594.tsv', 'NLVPMVATV')
+    # read_predictions_from_file('ergo_predictions/AE/CMV+/HIP00594_NLVPMVATV.pickle')
+    plot_multiple_peps_hists()
+    # reg_score_hist()
+
+# configurations:
+# lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
+# ae cuda:1 --model_file=ae_mcpas_specific__model.pt

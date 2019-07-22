@@ -189,6 +189,11 @@ class AEBatch:
         self.tcrs = [pair[0] for pair in pairs]
         self.temps = [pair[1] for pair in pairs]
         self.peps = [pair[2] for pair in pairs]
+        if len(pairs) != batch_size:
+            self.tcr_tensor = None
+            self.padded_peps = None
+            self.peps_lengths = None
+            return
         onehot_tcrs = ae_convert_tcrs(self.tcrs, max_len)
         self.tcr_tensor = torch.zeros((batch_size, max_len, 21))
         for i in range(batch_size):
@@ -196,7 +201,6 @@ class AEBatch:
         self.padded_peps, self.peps_lengths = lstm_pad_batch(self.peps)
 
     def to_device(self, device):
-
         self.tcr_tensor = self.tcr_tensor.to(device)
         self.padded_peps = self.padded_peps.to(device)
         self.peps_lengths = self.peps_lengths.to(device)
