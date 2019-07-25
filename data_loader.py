@@ -100,11 +100,11 @@ class PeptideRepertoire(Dataset):
             file.readline()
             reader = csv.reader(file, delimiter='\t')
             for line in reader:
-                tcr = line[1]
-                rearrangement_type = line[3]
-                templates = line[4]
-                if rearrangement_type != 'VDJ':
-                    continue
+                #tcr = line[1]
+                #rearrangement_type = line[3]
+                #templates = line[4]
+                tcr = line[0]
+                templates = line[1]
                 if tcr is '':
                     continue
                 if any(key in tcr for key in ['#', '*', '~', 'O', '/']):

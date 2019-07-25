@@ -79,12 +79,12 @@ def save_predictions_to_file(repertoire_filename, peptide):
     model.to(args.device)
     tcrs, temps, all_probs = predict(args.model_type, model, loader, args.device)
     assert len(tcrs) == len(all_probs)
-    pathology = repertoire_filename.split("/")[-2]
+    # pathology = repertoire_filename.split("/")[-2]
     rep_id = repertoire_filename.split("/")[-1]
     assert rep_id.endswith('.tsv')
     rep_id = rep_id[:-4]
-    with open('/'.join(['ergo_predictions', args.model_type.upper(),
-                        pathology, rep_id + '_' + peptide]) + '.pickle', 'wb') as handle:
+    with open('/'.join(['ergo_predictions2', args.model_type.upper(),
+                        rep_id + '_' + peptide]) + '.pickle', 'wb') as handle:
             pickle.dump(zip(tcrs, temps, all_probs), handle)
     # save predictions as (tcr, score) long list
     # file name is model_type / pathology / repertoire_name + peptide
@@ -154,7 +154,7 @@ def main(args, data):
 
 def save_predictions():
     cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
-    for subdir, dirs, files in os.walk('data'):
+    for subdir, dirs, files in os.walk('emerson_tcrs_with_temps'):
         for file in files:
             filepath = subdir + os.sep + file
             if filepath.endswith(".tsv"):
@@ -375,6 +375,61 @@ def score_hists_with_templates():
     pass
 
 
+def plot_single_hist():
+    # plot histograms
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    for i, pep in enumerate([cmv_peps[0]]):
+        p_tcrs = []
+        labels = []
+        neg_p = []
+        pos_p = []
+        for subdir, dirs, files in os.walk('ergo_predictions'):
+            for file in files:
+                filepath = subdir + os.sep + file
+                correct_hla = 'HIP00594' in filepath or 'HIP00602' in filepath
+                if filepath.endswith(pep + ".pickle") and args.model_type in filepath.lower() and correct_hla:
+                    print('----------------')
+                    print(filepath)
+                    label = filepath.split(os.sep)[-2]
+                    labels.append(label)
+                    tcrs, temps, preds = read_predictions_from_file(filepath)
+                    if label == 'CMV-':
+                        neg_p.append([pred for pred in preds if pred > 0.98])
+                    elif label == 'CMV+':
+                        pos_p.append([pred for pred in preds if pred > 0.98])
+                    # p_tcrs.append(preds)
+        # neg_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV-']
+        print(len(neg_p), len(pos_p))
+        neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+        # print(len(neg_logs[0]), len(neg_logs[1]))
+        # pos_p = [per for k, per in enumerate(p_tcrs) if labels[k] == 'CMV+']
+        pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+        bins = np.histogram(neg_logs[0], density=True, bins='auto', range=(-14.0, -4.0))[1]
+        print(bins)
+        neg_hists = [np.histogram(k, density=True, bins=bins)[0] for k in neg_logs]
+        pos_hists = [np.histogram(k, density=True, bins=bins)[0] for k in pos_logs]
+        # plt.hist(neg_hists, histtype='step', stacked=True, color=colors)
+        # plt.(pos_hists, histtype='step', stacked=True, color=colors)
+        ax = plt.subplot()
+
+        neg_colors = cm.Reds(np.linspace(0.5, 1, 10))
+        pos_colors = cm.Blues(np.linspace(0.5, 1, 10))
+        cmap = plt.cm.coolwarm
+        custom_lines = [Line2D([0], [0], color=cmap(0.), lw=4),
+                        Line2D([0], [0], color=cmap(1.), lw=4)]
+        # fig, ax = plt.subplots()
+        for neg_hist, nc, pos_hist, pc in zip(neg_hists, neg_colors, pos_hists, pos_colors):
+            ax.plot(range(len(neg_hists[0])), neg_hist, color=nc)
+            ax.plot(range(len(pos_hists[0])), pos_hist, color=pc)
+        ax.legend(custom_lines, ['CMV+, ' + pep, 'CMV-, ' + pep])
+        ax.set_xticks([k for k in range(len(pos_hists[0])) if k % 5 == 0])
+        ax.set_xticklabels([int(b) for i, b in enumerate(bins[:-1]) if i % 5 == 0])
+        if i == 0:
+            plt.xlabel('log(1 - x) normalized histograms for x > 0.98 scores')
+            plt.title("Highest bin plotted histograms based on ERGO-" + args.model_type.upper() + " CMV peptide scores")
+    plt.show()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("model_type")
@@ -396,11 +451,12 @@ if __name__ == '__main__':
     # exit()
     # save_predictions()
     # plot_score_histograms()
-    # save_predictions_to_file('data/CMV+/HIP00594.tsv', 'NLVPMVATV')
-    # read_predictions_from_file('ergo_predictions/AE/CMV+/HIP00594_NLVPMVATV.pickle')
+    # save_predictions_to_file('emerson_tcrs_with_temps/HIP00594.tsv', 'NLVPMVATV')
+    # read_predictions_from_file('ergo_predictions2/LSTM/HIP00594_NLVPMVATV.pickle')
     # plot_multiple_peps_hists()
     # reg_score_hist()
-    score_hists_with_templates()
+    # score_hists_with_templates()
+    # plot_single_hist()
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
