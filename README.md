@@ -69,3 +69,20 @@ This time we tried both ERGO models (AE and LSTM).
 ![](plots/plot_hists_3peps_ae.png)
 ![](plots/plot_hists_3peps_lstm.png)
 
+## Report 28.7.19 :bulb:
+### Matching HLA types
+Instead of predicting all repertoires scores and trying to distinguish CMV status,
+we now check only repertoires containing the HLA type of the peptide.
+
+CMV peptide | HLA type
+--- | ---
+NLVPMVATV | HLA-A*02
+VTEHDTLLY | HLA-A*01
+TPRVTGGGAM | HLA-B*07
+
+Next, we can look on the histograms as before
+![](plots/plot_hists_hla.png)
+
+The scores are noisy due to a large number of naive TCRs.
+We will try next to reduce the naive TCRs in the repertoire,
+by identifying TCRs that do not bind the top frequent peptides.
