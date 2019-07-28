@@ -430,6 +430,78 @@ def plot_single_hist():
     plt.show()
 
 
+def get_repertoires_from_hla(hla):
+    hla_csv = 'hla_types.csv'
+    reps = []
+    with open(hla_csv, 'r') as file:
+        for row in file:
+            row = row.strip().split(', ')
+            if hla in row:
+                reps.append(row[0])
+    return reps
+
+
+def get_rep_cmv_status(rep_id):
+    with open('cmv_status', 'r') as file:
+        for line in file:
+            rep, status = line.strip().split(', ')
+            if rep == rep_id:
+                return status
+
+
+def get_hlas(rep_id):
+    with open('hla_types.csv', 'r') as file:
+        for line in file:
+            line = line.strip().split(', ')
+            if line[0] == rep_id and len(line) > 0:
+                return line[1:]
+
+
+def plot_hists_matching_hla():
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    peps_hla = ['HLA-A*02', 'HLA-A*01', 'HLA-B*07']
+    for i, pep in enumerate(cmv_peps):
+        labels = []
+        neg_p = []
+        pos_p = []
+        rep_ids = get_repertoires_from_hla(peps_hla[i])
+        for rep_id in rep_ids:
+            filepath = os.sep.join(['ergo_predictions2', args.model_type.upper(),
+                                    rep_id + '_' + pep + '.pickle'])
+            label = get_rep_cmv_status(rep_id)
+            labels.append(label)
+            if peps_hla[i] in get_hlas(rep_id):
+                tcrs, temps, preds = read_predictions_from_file(filepath)
+                if label == 'CMV-':
+                    neg_p.append([pred for pred in preds if pred > 0.98])
+                elif label == 'CMV+':
+                    pos_p.append([pred for pred in preds if pred > 0.98])
+        neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+        pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+        bins = np.histogram(neg_logs[0], density=True, bins='auto', range=(-14.0, -4.0))[1]
+        # print(bins)
+        neg_hists = [np.histogram(k, density=True, bins=bins)[0] for k in neg_logs]
+        pos_hists = [np.histogram(k, density=True, bins=bins)[0] for k in pos_logs]
+        ax = plt.subplot(1, 3, i+1)
+        neg_colors = cm.Reds(np.linspace(0, 1, len(neg_hists)))
+        pos_colors = cm.Blues(np.linspace(0.5, 1, len(pos_hists)))
+        cmap = plt.cm.coolwarm
+        custom_lines = [Line2D([0], [0], color=cmap(0.), lw=4),
+                        Line2D([0], [0], color=cmap(1.), lw=4)]
+        # fig, ax = plt.subplots()
+        for neg_hist, nc, pos_hist, pc in zip(neg_hists, neg_colors, pos_hists, pos_colors):
+            ax.plot(range(len(neg_hists[0])), neg_hist, color=nc)
+            ax.plot(range(len(pos_hists[0])), pos_hist, color=pc)
+        ax.legend(custom_lines, ['CMV+, ' + pep + ', ' + peps_hla[i], 'CMV-, ' + pep + ', ' + peps_hla[i]])
+        ax.set_xticks([k for k in range(len(pos_hists[0])) if k % 5 == 0])
+        ax.set_xticklabels([int(b) for i, b in enumerate(bins[:-1]) if i % 5 == 0])
+        if i == 1:
+            plt.xlabel('log(1 - x) normalized histograms for x > 0.98 scores')
+            plt.title("Highest bin plotted histograms based on ERGO-" +args.model_type.upper() + " CMV peptide scores")
+    plt.show()
+    pass
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("model_type")
@@ -457,6 +529,8 @@ if __name__ == '__main__':
     # reg_score_hist()
     # score_hists_with_templates()
     # plot_single_hist()
+    # get_repertoires_from_hla('HLA-A*02')
+    plot_hists_matching_hla()
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
