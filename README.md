@@ -86,3 +86,36 @@ Next, we can look on the histograms as before
 The scores are noisy due to a large number of naive TCRs.
 We will try next to reduce the naive TCRs in the repertoire,
 by identifying TCRs that do not bind the top frequent peptides.
+
+## Report 1.8.19 :email:
+### Separating naive and memory TCRs using ERGO
+We tried using ERGO scores in order to distinguish between naive and
+memory TCRs. Using benny chain's data, we took the most frequent peptides in McPAS dataset,
+and scored each TCR in the repertoire paired with one peptide at a time using ERGO trained model.
+Scores were extracted by one naive repertoire and one memory repertoire (of the same patient).
+(We tried to use all of the data, but currently due to disk quota problems on the DSI server
+it is not done yet).
+
+Next, we used the scores to build a classifier. For evey TCR, the maximal score of all peptides
+was taken. We wanted a continuous classification score in order to extract a ROC curve,
+so the maximum, and then the average, with similar results, were taken.
+We then checked for ROC and AUC of the classifier, but unfortunately
+it did not separate naive and memory.
+![](plots/ergo_scores_classifier_roc.png)
+
+## Report 7.8.19 :blue_book:
+### Scores PCA
+Currently we have methods for scoring a single TCR, but not the whole repertoire.
+We have suggested a method aiming to reduce the noise in the repertoire scores.
+At first we use ERGO trained model to score each TCR in each Emerson et al. repertoires,
+paired with frequent CMV peptides.
+Then we build a score matrix for every peptide, by taking a fixed-size column of scores,
+from each repertoire (paired with the relevant peptide).
+We apply PCA and reduce the number of scores of each repertoire.
+Here, using 2 PCA components, we show the different repertoires scores for each CMV peptide:
+![](plots/pca_scores_NLVPMVATV.png)
+![](plots/pca_scores_VTEHDTLLY.png)
+![](plots/pca_scores_TPRVTGGGAM.png)
+
+Next we plan to reduce the naive TCRs score variance, this might help distinguishing
+CMV+ and CMV- repertoires.  

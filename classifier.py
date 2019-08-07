@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 from matplotlib.lines import Line2D
 import numpy as np
 import pickle
+from sklearn import decomposition
 
 
 def predict(key, model, loader, device):
@@ -502,6 +503,102 @@ def plot_hists_matching_hla():
     pass
 
 
+def save_freq_peps_distribution(filepath):
+    # save predictions fro more frequent peptides (not CMV)
+    freq_peps = ['LPRRSGAAGA', 'GILGFVFTL', 'GLCTLVAML', 'SSYRRPVGI', 'RFYKTLRAEQASQ',
+                 'SSLENFRAYV', 'ASNENMETM', 'ELAGIGILTV', 'LLWNGPMAV', 'HGIRNASFI']
+    if filepath.endswith(".tsv"):
+        print(filepath)
+        for pep in freq_peps:
+            save_predictions_to_file(filepath, pep)
+    pass
+
+
+def read_freq_peps_distribution(rep_id):
+    freq_peps = ['LPRRSGAAGA', 'GILGFVFTL', 'GLCTLVAML', 'SSYRRPVGI', 'RFYKTLRAEQASQ',
+                 'SSLENFRAYV', 'ASNENMETM', 'ELAGIGILTV', 'LLWNGPMAV', 'HGIRNASFI']
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    peps = cmv_peps + freq_peps
+    # rep_id = filepath.split(os.sep)[-1][:-(1 + len(pep) + len('.pickle'))]
+    tcr_preds = {}
+    for pep in peps:
+        file = os.sep.join(['ergo_predictions2', args.model_type.upper(),
+                                rep_id + '_' + pep + '.pickle'])
+        tcrs, temps, scores = read_predictions_from_file(file)
+        for tcr, score in zip(tcrs, scores):
+            try:
+                tcr_preds[tcr].append(score)
+            except KeyError:
+                tcr_preds[tcr] = [score]
+    # print(tcr_preds)
+    index, k = 0, 0
+    for tcr in tcr_preds:
+        k += 1
+        # if sum(tcr_preds[tcr]) < 1:
+        if all(t < 0.98 for t in tcr_preds[tcr]):
+            index += 1
+            print(tcr)
+    print(index, k)
+    pass
+
+
+def scores_pca():
+    freq_peps = ['LPRRSGAAGA', 'GILGFVFTL', 'GLCTLVAML', 'SSYRRPVGI', 'RFYKTLRAEQASQ',
+                 'SSLENFRAYV', 'ASNENMETM', 'ELAGIGILTV', 'LLWNGPMAV', 'HGIRNASFI']
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    '''
+    for every peptide
+        for every repertoire
+            take peptide scores of 50000 samples of repertoire
+            put as a column in a matrix
+        apply PCA on the matrix rows
+        reduce row dimension
+    '''
+    peps = cmv_peps #+ freq_peps
+    num_samples = 5000
+    rep_ids = set()
+    for subdir, dirs, files in os.walk('ergo_predictions2'):
+        for file in files:
+            filepath = subdir + os.sep + file
+            # correct_hla = pass
+            if filepath.endswith(".pickle") and args.model_type in filepath.lower():
+                rep_id = filepath.split(os.sep)[-1].split('_')[0]
+                cmv_status = get_rep_cmv_status(rep_id)
+                if not cmv_status is None:
+                    rep_ids.add((rep_id, cmv_status))
+                    if rep_id == 'HIP___':
+                        print(cmv_status)
+    rep_ids.remove(('HIP05763', 'CMV-'))
+    rep_ids = list(rep_ids)[:200]
+    for pep in peps:
+        pep_scores = np.zeros((num_samples, len(rep_ids)))
+        for j, rep_id in enumerate(rep_ids):
+            file = os.sep.join(['ergo_predictions2', args.model_type.upper(),
+                                rep_id[0] + '_' + pep + '.pickle'])
+            tcrs, temps, scores = read_predictions_from_file(file)
+            if len(scores) >= num_samples:
+                pep_scores[:, j] = scores[:num_samples]
+            else:
+                print(rep_id[0])
+        pep_scores = np.transpose(pep_scores)
+        pca = decomposition.PCA(n_components=2)
+        pca.fit(pep_scores)
+        pep_scores = pca.transform(pep_scores)
+        status_to_color = {'CMV+': 'royalblue', 'CMV-': 'tomato'}
+        colors = [status_to_color[rep_id[1]] for rep_id in rep_ids]
+        custom_lines = [Line2D([0], [0], color='royalblue', lw=4),
+                        Line2D([0], [0], color='tomato', lw=4)]
+        # plt.clf()
+        fig, ax = plt.subplots()
+        ax.scatter(pep_scores[:, 0], pep_scores[:, 1], color=colors)
+        ax.legend(custom_lines, ['CMV+', 'CMV-'])
+        ax.set_title('Repertoires Scores PCA, peptide: ' + pep)
+        plt.savefig('pca_scores_' + pep)
+        # plt.show()
+    # print(pep_scores.shape)
+    pass
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("model_type")
@@ -530,7 +627,10 @@ if __name__ == '__main__':
     # score_hists_with_templates()
     # plot_single_hist()
     # get_repertoires_from_hla('HLA-A*02')
-    plot_hists_matching_hla()
+    # plot_hists_matching_hla()
+    # save_freq_peps_distribution('emerson_tcrs_with_temps/HIP00594.tsv')
+    # read_freq_peps_distribution('HIP00594')
+    scores_pca()
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
