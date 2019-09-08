@@ -780,6 +780,73 @@ def hists_reads_cutoff():
     plt.show()
 
 
+def accumulating_score_distribution():
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    for i, pep in enumerate(cmv_peps):
+        labels = []
+        neg_p = []
+        pos_p = []
+        index = 0
+        for subdir, dirs, files in os.walk('ergo_predictions_reads'):
+            for file in files:
+                index += 1
+                if index > 300:
+                    break
+                filepath = subdir + os.sep + file
+                if filepath.endswith(pep + ".pickle") and args.model_type in filepath.lower():
+                    print(filepath)
+                    rep_id = filepath.split(os.sep)[-1].split('_')[0]
+                    label = get_rep_cmv_status(rep_id)
+                    print(label)
+                    labels.append(label)
+                    tcrs, reads, preds = read_predictions_from_file(filepath)
+                    product = [[k] * int(c) for k, c in zip(preds, reads) if c != 'null']
+                    flat = []
+                    for l in product:
+                        flat.extend(l)
+                    preds = flat
+                    if label == 'CMV-':
+                        neg_p.append([pred for pred in preds if pred > 0.98])
+                    elif label == 'CMV+':
+                        pos_p.append([pred for pred in preds if pred > 0.98])
+        neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+        pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+        bins = np.histogram(neg_logs[0], density=True, bins='auto', range=(-14.0, -4.0))[1]
+        # neg_hists = [np.histogram(k, density=True, bins=bins)[0] for k in neg_logs]
+        # pos_hists = [np.histogram(k, density=True, bins=bins)[0] for k in pos_logs]
+        ax = plt.subplot(1, 3, i + 1)
+        neg_colors = cm.Reds(np.linspace(0.5, 1, len(neg_logs)))
+        pos_colors = cm.Blues(np.linspace(0.5, 1, len(pos_logs)))
+        cmap = plt.cm.coolwarm
+        custom_lines = [Line2D([0], [0], color=cmap(0.), lw=4),
+                        Line2D([0], [0], color=cmap(1.), lw=4)]
+        print(neg_logs)
+        print(pos_logs)
+        print(len(neg_logs))
+        # for neg_log in neg_logs:
+        #    neg_log /= len(neg_logs)
+        # for pos_log in pos_logs:
+        #    pos_log /= len(pos_logs)
+        print(neg_logs)
+        print(pos_logs)
+        print(len(neg_logs), len(pos_logs))
+        m = min(len(pos_logs), len(neg_logs))
+        ax.hist(neg_logs[:m], color=neg_colors[:m], cumulative=True, bins=bins, histtype='step', density=True)
+        ax.hist(pos_logs[:m], color=pos_colors[:m], cumulative=True, bins=bins, histtype='step', density=True)
+
+        # for neg_hist, nc in zip(neg_hists, neg_colors):
+        #    ax.hist(neg_hist, color=nc)
+        # for pos_hist, pc in zip(pos_hists, pos_colors):
+        #    ax.hist(pos_hist, color=pc)
+        ax.legend(custom_lines, ['CMV+, ' + pep, 'CMV-, ' + pep])
+        # ax.set_xticks([k for k in range(len(pos_hists[0])) if k % 20 == 0])
+        # ax.set_xticklabels([int(b) for i, b in enumerate(bins[:-1]) if i % 20 == 0])
+        if i == 1:
+            plt.xlabel('log(1 - x) normalized histograms for x > 0.98 scores')
+            plt.title("Highest bin plotted histograms based on ERGO-" + args.model_type.upper() + " CMV peptide scores")
+    plt.show()
+    pass
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("model_type")
@@ -814,7 +881,8 @@ if __name__ == '__main__':
     # scores_pca()
     # histograms_with_reads()
     # cumulative_with_reads()
-    hists_reads_cutoff()
+    # hists_reads_cutoff()
+    accumulating_score_distribution()
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
