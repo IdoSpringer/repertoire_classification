@@ -8,6 +8,7 @@ from matplotlib.lines import Line2D
 import numpy as np
 import pickle
 from sklearn import decomposition
+from sklearn.metrics import roc_auc_score, roc_curve
 
 
 def predict(key, model, loader, device):
@@ -848,6 +849,69 @@ def accumulating_score_distribution():
     pass
 
 
+def cumulative_hist_roc_curve():
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    for i, pep in enumerate(cmv_peps):
+        for function, name in zip([lambda x: x, lambda x: np.log(x), lambda x: np.sqrt(x)],
+                                  ['reads', 'floor(log(reads))', 'floor(sqrt(reads))']):
+            labels = []
+            neg_p = []
+            pos_p = []
+            index = 0
+            for subdir, dirs, files in os.walk('ergo_predictions_reads'):
+                for file in files:
+                    index += 1
+                    if index > 100:
+                        break
+                    filepath = subdir + os.sep + file
+                    if filepath.endswith(pep + ".pickle") and args.model_type in filepath.lower():
+                        print(filepath)
+                        rep_id = filepath.split(os.sep)[-1].split('_')[0]
+                        label = get_rep_cmv_status(rep_id)
+                        print(label)
+                        labels.append(label)
+                        tcrs, reads, preds = read_predictions_from_file(filepath)
+                        product = [[k] * int(function(int(c))) for k, c in zip(preds, reads) if c != 'null']
+                        flat = []
+                        for l in product:
+                            flat.extend(l)
+                        preds = flat
+                        if label == 'CMV-':
+                            neg_p.append([pred for pred in preds if pred > 0.98])
+                        elif label == 'CMV+':
+                            pos_p.append([pred for pred in preds if pred > 0.98])
+            neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+            pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+            bins = np.histogram(neg_logs[0], density=True, bins='auto', range=(-14.0, -4.0))[1]
+            y_true = []
+            y_scores = []
+            areas = []
+            plt.figure(1)
+            for log in neg_logs:
+                values, bins, _ = plt.hist(log, cumulative=True, bins=bins, density=True)
+                area = sum(np.diff(bins) * values)
+                y_true.append(0)
+                y_scores.append(area)
+                areas.append(area)
+            for log in pos_logs:
+                values, bins, _ = plt.hist(log, cumulative=True, bins=bins, density=True)
+                area = sum(np.diff(bins) * values)
+                y_true.append(1)
+                y_scores.append(area)
+                areas.append(area)
+            avg_area = np.average(area)
+            y_scores /= avg_area * 2  # make average score to be 0.5
+            fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+            # plt.cla()
+            plt.figure(2)
+            plt.title('ROC curves of cumulative scores histograms area')
+            ax = plt.subplot(1, 3, i + 1)
+            ax.plot(fpr, tpr, label=name + ', auc: ' + str(np.round(roc_auc_score(y_true, y_scores), decimals=2)))
+            ax.legend()
+            ax.set_xlabel(pep)
+    plt.show()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("model_type")
@@ -883,7 +947,8 @@ if __name__ == '__main__':
     # histograms_with_reads()
     # cumulative_with_reads()
     # hists_reads_cutoff()
-    accumulating_score_distribution()
+    # accumulating_score_distribution()
+    cumulative_hist_roc_curve()
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
