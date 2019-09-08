@@ -800,7 +800,7 @@ def accumulating_score_distribution():
                     print(label)
                     labels.append(label)
                     tcrs, reads, preds = read_predictions_from_file(filepath)
-                    product = [[k] * int(c) for k, c in zip(preds, reads) if c != 'null']
+                    product = [[k] * int(np.sqrt(int(c))) for k, c in zip(preds, reads) if c != 'null']
                     flat = []
                     for l in product:
                         flat.extend(l)
@@ -842,10 +842,11 @@ def accumulating_score_distribution():
         # ax.set_xticks([k for k in range(len(pos_hists[0])) if k % 20 == 0])
         # ax.set_xticklabels([int(b) for i, b in enumerate(bins[:-1]) if i % 20 == 0])
         if i == 1:
-            plt.xlabel('log(1 - x) normalized histograms for x > 0.98 scores')
-            plt.title("Highest bin plotted histograms based on ERGO-" + args.model_type.upper() + " CMV peptide scores")
+            plt.xlabel('log(1 - x) * floor(sqrt(reads) normalized histograms for x > 0.98 scores')
+            plt.title("Score cumulative histograms based on ERGO-" + args.model_type.upper() + " CMV peptide scores")
     plt.show()
     pass
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
