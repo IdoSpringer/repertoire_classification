@@ -912,6 +912,87 @@ def cumulative_hist_roc_curve():
     plt.show()
 
 
+def cumulative_hist_grid():
+    # get cumulative hists.
+    # set a grid of (x,y) points
+    # plot on x the fraction of blue/red for which f(x) > y
+    nx, ny = (20, 20)
+    x = np.linspace(-14, -4, nx)
+    y = np.linspace(0, 1, ny)
+    xv, yv = np.meshgrid(x, y)
+    xv = xv.reshape(-1)
+    yv = yv.reshape(-1)
+    cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    for i, pep in enumerate(cmv_peps):
+        for j, (function, name) in enumerate(zip([lambda x: x, lambda x: np.log(x), lambda x: np.sqrt(x)],
+                                  ['reads', 'floor(log(reads))', 'floor(sqrt(reads))'])):
+            labels = []
+            neg_p = []
+            pos_p = []
+            index = 0
+            for subdir, dirs, files in os.walk('ergo_predictions_reads'):
+                for file in files:
+                    index += 1
+                    # todo 100
+                    if index > 100:
+                        break
+                    filepath = subdir + os.sep + file
+                    if filepath.endswith(pep + ".pickle") and args.model_type in filepath.lower():
+                        print(filepath)
+                        rep_id = filepath.split(os.sep)[-1].split('_')[0]
+                        label = get_rep_cmv_status(rep_id)
+                        print(label)
+                        labels.append(label)
+                        tcrs, reads, preds = read_predictions_from_file(filepath)
+                        product = [[k] * int(function(int(c))) for k, c in zip(preds, reads) if c != 'null']
+                        flat = []
+                        for l in product:
+                            flat.extend(l)
+                        preds = flat
+                        if label == 'CMV-':
+                            neg_p.append([pred for pred in preds if pred > 0.98])
+                        elif label == 'CMV+':
+                            pos_p.append([pred for pred in preds if pred > 0.98])
+            neg_logs = [np.log(1 - np.array(neg_bin)) for neg_bin in neg_p]
+            pos_logs = [np.log(1 - np.array(pos_bin)) for pos_bin in pos_p]
+            bins = np.histogram(neg_logs[0], density=True, bins='auto', range=(-14.0, -4.0))[1]
+            y_true = []
+            y_scores = []
+            plt.figure(1)
+            result_x = []
+            result_y = []
+            neg_hists = []
+            pos_hists = []
+            for log in neg_logs:
+                values, _, _ = plt.hist(log, cumulative=True, bins=bins, density=True)
+                neg_hists.append(values)
+            for log in pos_logs:
+                values, _, _ = plt.hist(log, cumulative=True, bins=bins, density=True)
+                pos_hists.append(values)
+            closest_bin = lambda x: min(enumerate(bins), key=lambda t: abs(t[1] - x))
+            for x, y in zip(xv, yv):
+                above_neg_count = 0
+                for hist in neg_hists:
+                    bin_index, bin = closest_bin(x)
+                    if hist[max(0, bin_index - 1)] >= y:
+                        above_neg_count += 1
+                result_x.append(above_neg_count / len(neg_hists))
+                above_pos_count = 0
+                for hist in pos_hists:
+                    bin_index, bin = closest_bin(x)
+                    if hist[max(0, bin_index - 1)] >= y:
+                        above_pos_count += 1
+                result_y.append(above_pos_count / len(pos_hists))
+            plt.clf()
+            plt.figure(2)
+            # plt.title('')
+            ax = plt.subplot(3, 3, i * 3 + j + 1)
+            ax.scatter(result_x, result_y)
+            ax.set_title(name + ', ' + pep)
+    plt.show()
+    pass
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("model_type")
@@ -948,7 +1029,9 @@ if __name__ == '__main__':
     # cumulative_with_reads()
     # hists_reads_cutoff()
     # accumulating_score_distribution()
-    cumulative_hist_roc_curve()
+    # cumulative_hist_roc_curve()
+    cumulative_hist_grid()
+
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
