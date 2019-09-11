@@ -41,7 +41,7 @@ def predict(key, model, loader, device):
     return tcrs, temps, np.array(all_probs)
 
 
-def save_predictions_to_file(repertoire_filename, peptide):
+def save_predictions_to_file(repertoire_filename, peptide, pred_dir):
     # all repertoire, some CMV peptides
     params = {}
     params['lr'] = 1e-3
@@ -85,7 +85,7 @@ def save_predictions_to_file(repertoire_filename, peptide):
     rep_id = repertoire_filename.split("/")[-1]
     assert rep_id.endswith('.tsv')
     rep_id = rep_id[:-4]
-    with open('/'.join(['ergo_predictions_reads', args.model_type.upper(),
+    with open('/'.join([pred_dir, args.model_type.upper(),
                         rep_id + '_' + peptide]) + '.pickle', 'wb') as handle:
             pickle.dump(zip(tcrs, temps, all_probs), handle)
     # save predictions as (tcr, score) long list
@@ -154,15 +154,17 @@ def main(args, data):
     pass
 
 
-def save_predictions():
+def save_predictions(data_dir, pred_dir):
     cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
-    for subdir, dirs, files in os.walk('emerson_tcrs_with_reads'):
+    diabetes_peps = ['VLFGLGFAI', 'NFIRMVISNPAAT']
+    peps = diabetes_peps
+    for subdir, dirs, files in os.walk(data_dir):
         for file in files:
             filepath = subdir + os.sep + file
             if filepath.endswith(".tsv"):
                 print(filepath)
-                for pep in cmv_peps:
-                    save_predictions_to_file(filepath, pep)
+                for pep in peps:
+                    save_predictions_to_file(filepath, pep, pred_dir)
 
 
 def reg_score_hist():
@@ -932,9 +934,12 @@ def cumulative_hist_grid():
             index = 0
             for subdir, dirs, files in os.walk('ergo_predictions_reads'):
                 for file in files:
+                    if index < 100:
+                        index += 1
+                        continue
                     index += 1
-                    # todo 100
-                    if index > 100:
+                    # to
+                    if index > 200:
                         break
                     filepath = subdir + os.sep + file
                     if filepath.endswith(pep + ".pickle") and args.model_type in filepath.lower():
@@ -1031,6 +1036,7 @@ if __name__ == '__main__':
     # accumulating_score_distribution()
     # cumulative_hist_roc_curve()
     cumulative_hist_grid()
+    # save_predictions('diabetes_tcr_counts', 'diabetes_predictions')
 
 
 # configurations:
