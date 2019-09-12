@@ -1035,9 +1035,9 @@ if __name__ == '__main__':
     # hists_reads_cutoff()
     # accumulating_score_distribution()
     # cumulative_hist_roc_curve()
-    cumulative_hist_grid()
+    # cumulative_hist_grid()
     # save_predictions('diabetes_tcr_counts', 'diabetes_predictions')
-
+    #
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt

@@ -118,4 +118,74 @@ Here, using 2 PCA components, we show the different repertoires scores for each 
 ![](plots/pca_scores_TPRVTGGGAM.png)
 
 Next we plan to reduce the naive TCRs score variance, this might help distinguishing
-CMV+ and CMV- repertoires.  
+CMV+ and CMV- repertoires.
+
+## Report 2.9.19
+### Reads factor histograms
+Until now, we did not consider the number of TCR reads in the repertoire
+(except for an early trial to take the number of templates).
+We extracted from Emerson et al. data the TCRs along with the number of reads for all repertoires,
+and run as usual the ERGO predictions for some CMV peptides.
+
+As before, we extracted the score histograms for log(1-x) for scores x > 0.98.
+We used the number of TCR reads as a multiplication factor to the score.
+![reads factor histogram](plots/plot_hist_reads_cmv.png)
+
+## Report 3.9.19
+### Cumulative histograms
+Taking the reads factor score distribution, we looked over the
+cumulative distribution histograms for some of the CMV+ and the CMV- repertoires.
+(These histograms are not normalized).
+![reads factor cumulative](plots/plot_hists_reads_factor_cumulative.png)
+
+### Reads cutoff
+In addition, we extracted another score distribution,
+of the ERGO scores for TCRs with at least 10 reads in the sample.
+(It is only cutoff, we did not multiplied the scores with the reads) 
+Here it is harder to see any difference between CMV+ and CMV- samples.
+We considered the whole CMV samples.
+![reads cutoff](plots/plot_hists_read_cutoff.png)
+
+## Report 8.9.19
+### Normalized cumulative
+We normalized the last cumulative histograms, and expanded it to more CMV repertoires.
+A small difference between CMV+ and CMV- can be noticed.
+![normalized cumulative](plots/cumulative_hists_reads_step_cmv300.png)
+
+### More reads factors
+Instead of just multiplying the scores with the TCRs reads in the score distribution,
+we tried different reads factors, as log(reads) and sqrt(reads) (score * the floor of it).
+The outcome cumulative histograms are shown
+![log reads](plots/cumulative_hists_log_reads_step_cmv.png)
+![sqrt reads](plots/cumulative_hists_sqrt_reads_step_cmv.png)
+
+### Histograms area ROC
+Since there is a difference between CMV+ and CMV- distributions, we wanted to
+get a ROC curve of the histograms. Each histogram got a score - the area under the histogram
+divided by twice the average of histograms areas. In this way most of the histograms are
+around 0.5, when CMV- histograms should get 0 and CMV+ histograms should get 1.
+
+ROC curve was extracted based on these histograms scores for every peptide and every
+reads factor that was tried.
+![area ROC](plots/roc_cumulative_hists_cmv.png)
+
+## Report 10.9.19
+### Grid plots
+The previous ROC curve did not show a clear classification. We tried another method.
+A grid of 20*20 (x,y) points was chosen. for every (x,y) point, we took the fraction of
+CMV- histograms that uphold h(x) > y, and the same for CMV+ histograms, and plotted the fractions
+in a new point (frac_cmv-, frac_cmv+). This was done for all peptides and all reads factors,
+for some of the CMV samples.
+![grid plot](plots/hists_grid.png)
+
+
+## Report 11.9.19
+# Grid plots
+Same as yesterday, we extracted a grid plot, this time for other CMV samples (of the same size).
+We can again see a clear separation point in the left middle square.
+![other grid plot](plots/hists_grid2.png)
+
+###ERGO on diabetes
+A new dataset related with Type 1 diabetes was given.
+We run ERGO model with diabetes peptides to extract repertoire scores.
+Soon we will be able to extract score histograms as in the Emerson et al. CMV dataset. 
