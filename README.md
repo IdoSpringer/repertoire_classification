@@ -120,7 +120,7 @@ Here, using 2 PCA components, we show the different repertoires scores for each 
 Next we plan to reduce the naive TCRs score variance, this might help distinguishing
 CMV+ and CMV- repertoires.
 
-## Report 2.9.19
+## Report 2.9.19 :maple_leaf:
 ### Reads factor histograms
 Until now, we did not consider the number of TCR reads in the repertoire
 (except for an early trial to take the number of templates).
@@ -131,7 +131,7 @@ As before, we extracted the score histograms for log(1-x) for scores x > 0.98.
 We used the number of TCR reads as a multiplication factor to the score.
 ![reads factor histogram](plots/plot_hist_reads_cmv.png)
 
-## Report 3.9.19
+## Report 3.9.19 :spoon:
 ### Cumulative histograms
 Taking the reads factor score distribution, we looked over the
 cumulative distribution histograms for some of the CMV+ and the CMV- repertoires.
@@ -146,7 +146,7 @@ Here it is harder to see any difference between CMV+ and CMV- samples.
 We considered the whole CMV samples.
 ![reads cutoff](plots/plot_hists_read_cutoff.png)
 
-## Report 8.9.19
+## Report 8.9.19 :anchor:
 ### Normalized cumulative
 We normalized the last cumulative histograms, and expanded it to more CMV repertoires.
 A small difference between CMV+ and CMV- can be noticed.
@@ -169,7 +169,7 @@ ROC curve was extracted based on these histograms scores for every peptide and e
 reads factor that was tried.
 ![area ROC](plots/roc_cumulative_hists_cmv.png)
 
-## Report 10.9.19
+## Report 10.9.19 :zap:
 ### Grid plots
 The previous ROC curve did not show a clear classification. We tried another method.
 A grid of 20*20 (x,y) points was chosen. for every (x,y) point, we took the fraction of
@@ -179,13 +179,13 @@ for some of the CMV samples.
 ![grid plot](plots/hists_grid.png)
 
 
-## Report 11.9.19
-# Grid plots
+## Report 11.9.19 :floppy_disk:
+### Grid plots
 Same as yesterday, we extracted a grid plot, this time for other CMV samples (of the same size).
 We can again see a clear separation point in the left middle square.
 ![other grid plot](plots/hists_grid2.png)
 
-###ERGO on diabetes
+### ERGO on diabetes
 A new dataset related with Type 1 diabetes was given.
 We run ERGO model with diabetes peptides to extract repertoire scores.
 Soon we will be able to extract score histograms as in the Emerson et al. CMV dataset. 
