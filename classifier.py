@@ -156,8 +156,9 @@ def main(args, data):
 
 def save_predictions(data_dir, pred_dir):
     cmv_peps = ['NLVPMVATV', 'VTEHDTLLY', 'TPRVTGGGAM']
+    more_cmv_peps = ['YSEHPTFTSQY', 'QYDPVAALF', 'QIKVRVKMV']
     diabetes_peps = ['VLFGLGFAI', 'NFIRMVISNPAAT']
-    peps = diabetes_peps
+    peps = more_cmv_peps
     for subdir, dirs, files in os.walk(data_dir):
         for file in files:
             filepath = subdir + os.sep + file
@@ -998,6 +999,76 @@ def cumulative_hist_grid():
     pass
 
 
+# Diabetes
+def get_diabetes_status(rep_id):
+    with open('diabetes_status.csv') as csv_file:
+        reader = csv.reader(csv_file)
+        for line in reader:
+            if line[0] == rep_id + '.tsv':
+                return line[1]
+    pass
+
+
+def diabetes_cumulative_hists():
+    diabetes_peps = ['VLFGLGFAI', 'NFIRMVISNPAAT']
+    factor = lambda x: x
+    for i, pep in enumerate(diabetes_peps):
+        labels = []
+        t1d_p = []
+        ab_p = []
+        control_p = []
+        index = 0
+        for subdir, dirs, files in os.walk('diabetes_predictions'):
+            for file in files:
+                '''
+                index += 1
+                if index > 300:
+                    break
+                '''
+                filepath = subdir + os.sep + file
+                if filepath.endswith(pep + ".pickle") and args.model_type in filepath.lower():
+                    print(filepath)
+                    rep_id = '_'.join(filepath.split(os.sep)[-1].split('_')[:-1])
+                    print(rep_id)
+                    label = get_diabetes_status(rep_id)
+                    print(label)
+                    labels.append(label)
+                    tcrs, reads, preds = read_predictions_from_file(filepath)
+                    product = [[k] * int(factor((int(c)))) for k, c in zip(preds, reads) if c != 'null']
+                    flat = []
+                    for l in product:
+                        flat.extend(l)
+                    preds = flat
+                    if label == 'T1D':
+                        t1d_p.append([pred for pred in preds if pred > 0.98])
+                    elif label == 'AB+':
+                        ab_p.append([pred for pred in preds if pred > 0.98])
+                    elif label == 'Control':
+                        control_p.append([pred for pred in preds if pred > 0.98])
+        t1d_logs = [np.log(1 - np.array(bin)) for bin in t1d_p]
+        ab_logs = [np.log(1 - np.array(bin)) for bin in ab_p]
+        control_logs = [np.log(1 - np.array(bin)) for bin in control_p]
+        bins = np.histogram(t1d_logs[0], density=True, bins='auto', range=(-14.0, -4.0))[1]
+        ax = plt.subplot(1, 2, i + 1)
+        t1d_colors = cm.Reds(np.linspace(0.5, 1, len(t1d_logs)))
+        ab_colors = cm.Blues(np.linspace(0.5, 1, len(ab_logs)))
+        control_colors = cm.Greens(np.linspace(0.5, 1, len(control_logs)))
+        custom_lines = [Line2D([0], [0], color='red', lw=4),
+                        Line2D([0], [0], color='blue', lw=4),
+                        Line2D([0], [0], color='green', lw=4)]
+        m = min(len(t1d_logs), len(control_logs), len(ab_logs))
+        ax.hist(t1d_logs[:m], color=t1d_colors[:m], cumulative=True, bins=bins, histtype='step', density=True)
+        ax.hist(ab_logs[:m], color=ab_colors[:m], cumulative=True, bins=bins, histtype='step', density=True)
+        ax.hist(control_logs[:m], color=control_colors[:m], cumulative=True, bins=bins, histtype='step', density=True)
+        ax.legend(custom_lines, ['T1D, ' + pep, 'AB+, ' + pep, 'Control, ' + pep])
+        plt.suptitle("Score cumulative histograms based on ERGO-" + args.model_type.upper() + " Diabetes peptide scores")
+        #if i == 1:
+        #    plt.xlabel('log(1 - x) * floor(sqrt(reads) normalized histograms for x > 0.98 scores')
+        #    plt.title("Score cumulative histograms based on ERGO-" + args.model_type.upper() + " CMV peptide scores")
+    plt.show()
+    pass
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("model_type")
@@ -1037,7 +1108,8 @@ if __name__ == '__main__':
     # cumulative_hist_roc_curve()
     # cumulative_hist_grid()
     # save_predictions('diabetes_tcr_counts', 'diabetes_predictions')
-    #
+    # save_predictions('emerson_tcrs_with_reads', 'ergo_predictions_reads')
+    diabetes_cumulative_hists()
 
 # configurations:
 # lstm cuda:1 --model_file=lstm_mcpas_specific__model.pt
