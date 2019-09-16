@@ -189,7 +189,7 @@ A new dataset related with Type 1 diabetes was given.
 We run ERGO model with diabetes peptides to extract repertoire scores.
 Soon we will be able to extract score histograms as in the Emerson et al. CMV dataset. 
 
-## Report 15.9.19
+## Report 15.9.19 :mag:
 ### Diabetes histograms
 We extracted score histograms based on ERGO model predictions for the diabetes dataset.
 ![diabetes hists](plots/diabetes_cumulative_hists.png)
