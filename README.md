@@ -178,7 +178,6 @@ in a new point (frac_cmv-, frac_cmv+). This was done for all peptides and all re
 for some of the CMV samples.
 ![grid plot](plots/hists_grid.png)
 
-
 ## Report 11.9.19 :floppy_disk:
 ### Grid plots
 Same as yesterday, we extracted a grid plot, this time for other CMV samples (of the same size).
@@ -189,3 +188,10 @@ We can again see a clear separation point in the left middle square.
 A new dataset related with Type 1 diabetes was given.
 We run ERGO model with diabetes peptides to extract repertoire scores.
 Soon we will be able to extract score histograms as in the Emerson et al. CMV dataset. 
+
+## Report 15.9.19
+### Diabetes histograms
+We extracted score histograms based on ERGO model predictions for the diabetes dataset.
+![diabetes hists](plots/diabetes_cumulative_hists.png)
+Unlike the CMV dataset, here it is hard to see any difference between control samples
+and type 1 diabetes (T1D) samples. It is possible that the model did not trained well on diabetes peptides.
